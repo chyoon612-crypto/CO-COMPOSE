@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { AppStep, UserEmotion, SongResult } from './types';
-import { generateLyrics, generateSongAudio, decode, decodeAudioData } from './services/geminiService';
+import { AppStep, UserEmotion, SongResult } from './types.ts';
+import { generateLyrics, generateSongAudio, decode, decodeAudioData } from './services/geminiService.ts';
 import { Music, MessageSquare, Share2, Sparkles, Users, ArrowRight, Play, Heart, Star, Cloud } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -190,7 +190,6 @@ const App: React.FC = () => {
       </div>
       
       <div className="relative bg-white/60 backdrop-blur-sm rounded-3xl p-10 min-h-[400px] border border-white/50 shadow-inner flex flex-wrap items-center justify-center gap-6">
-        {/* Placeholder emotions to simulate a "class" environment */}
         <div className="p-4 bg-pink-100 text-pink-700 rounded-lg shadow-sm rotate-2">바다에 온 기분이 들어요 🌊</div>
         <div className="p-4 bg-yellow-100 text-yellow-700 rounded-lg shadow-sm -rotate-1">따뜻한 햇살 같아요 ☀️</div>
         <div className="p-4 bg-blue-100 text-blue-700 rounded-lg shadow-sm rotate-3">조금 슬프지만 아름다워요..</div>
@@ -296,7 +295,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-20">
-      {/* Header */}
       <header className="px-6 py-4 flex justify-between items-center bg-white/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
@@ -309,7 +307,6 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Flow */}
       <main className="container mx-auto">
         {step === AppStep.LANDING && renderLanding()}
         {step === AppStep.LISTENING && renderListening()}
@@ -319,7 +316,6 @@ const App: React.FC = () => {
         {step === AppStep.RESULT && renderResult()}
       </main>
 
-      {/* Step Indicator (Desktop) */}
       {step !== AppStep.LANDING && step !== AppStep.GENERATING && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur shadow-2xl rounded-2xl px-8 py-4 border border-indigo-100 flex items-center space-x-4 z-50">
           <div className="flex space-x-2">
