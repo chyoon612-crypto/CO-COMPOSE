@@ -2,13 +2,12 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { UserEmotion, SongResult } from "../types";
 
-/**
- * AI 클라이언트를 필요할 때 생성하는 헬퍼 함수입니다.
- * 모듈 로드 시점에 process.env를 직접 참조할 때 발생하는 오류를 방지합니다.
- */
 const getAIClient = () => {
   const apiKey = process.env.API_KEY;
-  return new GoogleGenAI({ apiKey: apiKey || "" });
+  if (!apiKey || apiKey === "") {
+    throw new Error("API_KEY가 설정되지 않았습니다. Vercel 환경 변수 설정을 확인해주세요.");
+  }
+  return new GoogleGenAI({ apiKey });
 };
 
 export const generateLyrics = async (emotions: UserEmotion[]): Promise<{ title: string; lyrics: string }> => {
@@ -20,20 +19,14 @@ export const generateLyrics = async (emotions: UserEmotion[]): Promise<{ title: 
     contents: `
       다음은 학생들이 연주를 듣고 느낀 감정들입니다: [${emotionTexts}]
       이 감정들을 하나로 엮어 서정적이고 시적인 노래 가사를 만들어주세요.
-      
       가사의 형식과 어조는 다음 예시를 참고하세요:
       "이제 모두 세월 따라 흔적도 없이 변해갔지만
       덕수궁 돌담길엔 아직 남아 있어요
-      다정히 걸어가는 연인들
-      언젠가는 우리 모두 세월을 따라 떠나가지만
-      언덕 밑 정동길엔 아직 남아있어요
-      눈 덮인 조그만 교회당..."
+      다정히 걸어가는 연인들..."
       
       [요구사항]
-      1. '1절', '후렴' 같은 명시적인 구분 기호는 넣지 마세요.
-      2. 문장이 자연스럽게 이어지는 서사적인 발라드 형식으로 작성하세요.
-      3. 학생들이 쓴 단어와 감정들을 가사의 중심 소재로 사용하여 그들의 마음이 느껴지게 하세요.
-      4. 특정한 장소나 시각적 이미지를 묘사하여 한 편의 그림 같은 가사를 만드세요.
+      1. '1절', '후렴' 같은 구분 기호 없이 서사적인 발라드 형식으로 작성하세요.
+      2. 반드시 JSON 형식으로만 응답하세요.
     `,
     config: {
       responseMimeType: "application/json",
@@ -48,7 +41,14 @@ export const generateLyrics = async (emotions: UserEmotion[]): Promise<{ title: 
     }
   });
 
-  return JSON.parse(response.text);
+  try {
+    // 마크다운 코드 블록 제거 및 순수 JSON 추출
+    const cleanText = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(cleanText);
+  } catch (e) {
+    console.error("JSON 파싱 에러:", response.text);
+    throw new Error("AI 응답 형식이 올바르지 않습니다.");
+  }
 };
 
 export const generateSongAudio = async (lyrics: string): Promise<string> => {
@@ -67,16 +67,14 @@ export const generateSongAudio = async (lyrics: string): Promise<string> => {
   });
 
   const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!base64Audio) throw new Error("Audio generation failed");
+  if (!base64Audio) throw new Error("음성 생성에 실패했습니다 (AI 응답 누락).");
   return base64Audio;
 };
 
-// Utils for Audio Processing
 export function decode(base64: string) {
   const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;

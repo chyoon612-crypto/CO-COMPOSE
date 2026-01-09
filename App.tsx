@@ -46,9 +46,10 @@ const App: React.FC = () => {
         audioBase64
       });
       setStep(AppStep.RESULT);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("음악 생성 중 오류가 발생했습니다.");
+      const errorMsg = error?.message || "알 수 없는 오류가 발생했습니다.";
+      alert(`음악 생성 중 오류가 발생했습니다: \n${errorMsg}`);
       setStep(AppStep.BOARD);
     } finally {
       setIsProcessing(false);
@@ -68,17 +69,21 @@ const App: React.FC = () => {
       await ctx.resume();
     }
 
-    const audioBuffer = await decodeAudioData(
-      decode(songResult.audioBase64),
-      ctx,
-      24000,
-      1
-    );
+    try {
+      const audioBuffer = await decodeAudioData(
+        decode(songResult.audioBase64),
+        ctx,
+        24000,
+        1
+      );
 
-    const source = ctx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(ctx.destination);
-    source.start();
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      source.start();
+    } catch (e) {
+      alert("오디오 재생 중 오류가 발생했습니다.");
+    }
   };
 
   // Render Step Components
@@ -93,7 +98,7 @@ const App: React.FC = () => {
       </p>
       <button 
         onClick={startFlow}
-        className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 bg-indigo-600 font-pj rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 hover:bg-indigo-700 shadow-lg"
+        className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 bg-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 hover:bg-indigo-700 shadow-lg"
       >
         시작하기
         <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />

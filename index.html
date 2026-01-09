@@ -14,7 +14,6 @@
             min-height: 100vh;
             margin: 0;
         }
-        /* 앱 로드 전 안내 메시지 */
         #root:empty::before {
             content: 'Loading Co-Compose...';
             position: fixed;
@@ -28,7 +27,6 @@
         }
     </style>
     <script>
-        // 전역 process 객체 정의 (ReferenceError 방지)
         window.process = window.process || { env: { API_KEY: "" } };
     </script>
     <script type="importmap">
