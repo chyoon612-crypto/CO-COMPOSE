@@ -1,0 +1,7 @@
+{
+  "name": "Co-Compose (공감으로 만드는 음악)",
+  "description": "연주자의 연주를 듣고 학생들의 감정을 모아 AI와 함께 가사와 곡을 만드는 공동 창작 플랫폼입니다.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
