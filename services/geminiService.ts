@@ -2,9 +2,17 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { UserEmotion, SongResult } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+/**
+ * AI 클라이언트를 필요할 때 생성하는 헬퍼 함수입니다.
+ * 모듈 로드 시점에 process.env를 직접 참조할 때 발생하는 오류를 방지합니다.
+ */
+const getAIClient = () => {
+  const apiKey = process.env.API_KEY;
+  return new GoogleGenAI({ apiKey: apiKey || "" });
+};
 
 export const generateLyrics = async (emotions: UserEmotion[]): Promise<{ title: string; lyrics: string }> => {
+  const ai = getAIClient();
   const emotionTexts = emotions.map(e => e.text).join(", ");
   
   const response = await ai.models.generateContent({
@@ -44,6 +52,7 @@ export const generateLyrics = async (emotions: UserEmotion[]): Promise<{ title: 
 };
 
 export const generateSongAudio = async (lyrics: string): Promise<string> => {
+  const ai = getAIClient();
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash-preview-tts",
     contents: [{ parts: [{ text: `아름답고 감성적인 목소리로 이 가사를 노래하듯 읽어주세요: ${lyrics}` }] }],
