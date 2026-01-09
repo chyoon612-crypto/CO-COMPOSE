@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppStep, UserEmotion, SongResult } from './types.ts';
 import { generateLyrics, generateSongAudio, decode, decodeAudioData } from './services/geminiService.ts';
-import { Music, MessageSquare, Share2, Sparkles, Users, ArrowRight, Play, Heart, Star, Cloud } from 'lucide-react';
+import { Music, MessageSquare, Share2, Sparkles, Users, ArrowRight, Play, Heart, Star, Cloud, Key, ExternalLink } from 'lucide-react';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.LANDING);
@@ -11,6 +11,27 @@ const App: React.FC = () => {
   const [songResult, setSongResult] = useState<SongResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [needsKey, setNeedsKey] = useState(false);
+
+  // API 키 확인 및 초기화
+  useEffect(() => {
+    const checkApiKey = async () => {
+      // @ts-ignore
+      if (window.aistudio && !(await window.aistudio.hasSelectedApiKey()) && !process.env.API_KEY) {
+        setNeedsKey(true);
+      }
+    };
+    checkApiKey();
+  }, []);
+
+  const handleSelectKey = async () => {
+    // @ts-ignore
+    if (window.aistudio) {
+      // @ts-ignore
+      await window.aistudio.openSelectKey();
+      setNeedsKey(false); // 선택 후 즉시 진행
+    }
+  };
 
   const startFlow = () => setStep(AppStep.LISTENING);
 
@@ -58,25 +79,14 @@ const App: React.FC = () => {
 
   const playSong = async () => {
     if (!songResult?.audioBase64) return;
-    
     let ctx = audioContext;
     if (!ctx) {
       ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       setAudioContext(ctx);
     }
-    
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
-    }
-
+    if (ctx.state === 'suspended') await ctx.resume();
     try {
-      const audioBuffer = await decodeAudioData(
-        decode(songResult.audioBase64),
-        ctx,
-        24000,
-        1
-      );
-
+      const audioBuffer = await decodeAudioData(decode(songResult.audioBase64), ctx, 24000, 1);
       const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(ctx.destination);
@@ -86,7 +96,38 @@ const App: React.FC = () => {
     }
   };
 
-  // Render Step Components
+  // API 키 선택 화면 렌더링
+  if (needsKey) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-6">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 text-center border border-indigo-50">
+          <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6 text-indigo-600">
+            <Key className="w-10 h-10" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">API 키 설정이 필요합니다</h2>
+          <p className="text-gray-600 mb-8 leading-relaxed">
+            Co-Compose를 이용하려면 Gemini API 키가 필요합니다. 유료 결제가 활성화된 프로젝트의 키를 선택해주세요.
+          </p>
+          <button 
+            onClick={handleSelectKey}
+            className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-lg mb-4"
+          >
+            API 키 선택하기
+          </button>
+          <a 
+            href="https://ai.google.dev/gemini-api/docs/billing" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center justify-center text-sm text-indigo-500 font-semibold hover:underline"
+          >
+            결제 및 빌링 문서 확인하기 <ExternalLink className="ml-1 w-4 h-4" />
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // 기존 렌더링 로직 (Landing, Listening, 등등)
   const renderLanding = () => (
     <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4">
       <div className="bg-white/30 backdrop-blur-md p-8 rounded-full mb-8 border border-white/50 shadow-xl">
@@ -98,7 +139,7 @@ const App: React.FC = () => {
       </p>
       <button 
         onClick={startFlow}
-        className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 bg-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 hover:bg-indigo-700 shadow-lg"
+        className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 bg-indigo-600 rounded-xl hover:bg-indigo-700 shadow-lg"
       >
         시작하기
         <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -121,10 +162,7 @@ const App: React.FC = () => {
         <span className="w-3 h-3 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
         <span className="w-3 h-3 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
       </div>
-      <button 
-        onClick={() => setStep(AppStep.EMOTION_INPUT)}
-        className="mt-16 text-indigo-600 font-semibold hover:underline"
-      >
+      <button onClick={() => setStep(AppStep.EMOTION_INPUT)} className="mt-16 text-indigo-600 font-semibold hover:underline">
         연주가 끝났나요? 감정 표현하기
       </button>
     </div>
@@ -147,15 +185,11 @@ const App: React.FC = () => {
             placeholder="예: 따뜻해요, 별이 떠오르는 기분이에요..."
             className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-lg"
           />
-          <button 
-            onClick={addEmotion}
-            className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
-          >
+          <button onClick={addEmotion} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors">
             기록하기
           </button>
         </div>
       </div>
-
       <div className="space-y-4">
         <h3 className="font-semibold text-gray-500 flex items-center">
           <Users className="w-4 h-4 mr-2" /> 내가 남긴 소중한 생각들 ({emotions.length})
@@ -164,10 +198,7 @@ const App: React.FC = () => {
           {emotions.map(e => (
             <span key={e.id} className="inline-flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100 shadow-sm animate-in slide-in-from-bottom-2">
               {e.text}
-              <button 
-                onClick={() => setEmotions(emotions.filter(item => item.id !== e.id))}
-                className="ml-2 text-indigo-300 hover:text-indigo-600"
-              >
+              <button onClick={() => setEmotions(emotions.filter(item => item.id !== e.id))} className="ml-2 text-indigo-300 hover:text-indigo-600">
                 &times;
               </button>
             </span>
@@ -175,12 +206,8 @@ const App: React.FC = () => {
           {emotions.length === 0 && <p className="text-gray-400 italic">아직 기록된 감정이 없습니다.</p>}
         </div>
       </div>
-
       <div className="mt-12 flex justify-end">
-        <button 
-          onClick={finalizeEmotions}
-          className="flex items-center bg-gray-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-black transition-all shadow-lg"
-        >
+        <button onClick={finalizeEmotions} className="flex items-center bg-gray-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-black transition-all shadow-lg">
           공유 보드로 이동 <ArrowRight className="ml-2 w-5 h-5" />
         </button>
       </div>
@@ -193,12 +220,7 @@ const App: React.FC = () => {
         <h2 className="text-3xl font-extrabold text-gray-900 mb-2">우리의 감정 보드</h2>
         <p className="text-gray-600">모든 친구들의 소감을 모아보았습니다. 서로의 마음이 연결되고 있어요.</p>
       </div>
-      
       <div className="relative bg-white/60 backdrop-blur-sm rounded-3xl p-10 min-h-[400px] border border-white/50 shadow-inner flex flex-wrap items-center justify-center gap-6">
-        <div className="p-4 bg-pink-100 text-pink-700 rounded-lg shadow-sm rotate-2">바다에 온 기분이 들어요 🌊</div>
-        <div className="p-4 bg-yellow-100 text-yellow-700 rounded-lg shadow-sm -rotate-1">따뜻한 햇살 같아요 ☀️</div>
-        <div className="p-4 bg-blue-100 text-blue-700 rounded-lg shadow-sm rotate-3">조금 슬프지만 아름다워요..</div>
-        
         {emotions.map(e => (
           <div 
             key={e.id}
@@ -220,15 +242,10 @@ const App: React.FC = () => {
           </div>
         ))}
       </div>
-
       <div className="mt-12 flex flex-col items-center space-y-4">
-        <button 
-          onClick={createMusic}
-          className="flex items-center bg-indigo-600 text-white px-10 py-5 rounded-2xl font-black text-xl hover:bg-indigo-700 transition-all shadow-xl hover:-translate-y-1 active:translate-y-0"
-        >
+        <button onClick={createMusic} className="flex items-center bg-indigo-600 text-white px-10 py-5 rounded-2xl font-black text-xl hover:bg-indigo-700 shadow-xl hover:-translate-y-1">
           <Sparkles className="mr-3 w-6 h-6" /> 이 감정들로 노래 만들기
         </button>
-        <p className="text-gray-500 text-sm">AI가 학생들의 소감을 분석하여 가사와 곡을 생성합니다.</p>
       </div>
     </div>
   );
@@ -240,15 +257,7 @@ const App: React.FC = () => {
         <div className="absolute inset-0 border-8 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
       </div>
       <h2 className="text-3xl font-bold text-gray-900 mb-4">노래를 짓고 있어요</h2>
-      <p className="text-gray-600 max-w-md">
-        "여러분의 감정들을 조화롭게 섞어 아름다운 선율과 가사를 만들고 있습니다. 잠시만 기다려주세요."
-      </p>
-      <div className="mt-10 space-y-2 w-full max-w-xs">
-        <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-          <div className="h-full bg-indigo-600 w-3/4 animate-pulse"></div>
-        </div>
-        <p className="text-xs text-indigo-500 font-bold uppercase tracking-widest">AI Composition in progress</p>
-      </div>
+      <p className="text-gray-600 max-w-md">여러분의 감정들을 조화롭게 섞어 아름다운 선율과 가사를 만들고 있습니다.</p>
     </div>
   );
 
@@ -256,42 +265,24 @@ const App: React.FC = () => {
     <div className="max-w-3xl mx-auto py-10 px-4 pb-32">
       <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-indigo-50">
         <div className="bg-indigo-600 p-10 text-center text-white relative">
-          <div className="absolute top-4 right-6 opacity-20">
-            <Sparkles className="w-20 h-20" />
-          </div>
           <h3 className="text-sm font-bold tracking-[0.2em] uppercase mb-4 opacity-80">우리의 공동 창작곡</h3>
           <h2 className="text-4xl font-black mb-6">{songResult?.title}</h2>
-          <button 
-            onClick={playSong}
-            className="inline-flex items-center bg-white text-indigo-600 px-8 py-4 rounded-full font-bold shadow-xl hover:scale-105 transition-transform"
-          >
+          <button onClick={playSong} className="inline-flex items-center bg-white text-indigo-600 px-8 py-4 rounded-full font-bold shadow-xl hover:scale-105 transition-transform">
             <Play className="mr-2 w-5 h-5 fill-current" /> 노래 듣기
           </button>
         </div>
-        
         <div className="p-10 md:p-16 text-center bg-indigo-50/20">
           <h4 className="text-gray-400 font-bold text-xs uppercase tracking-widest mb-8">Lyrics</h4>
           <div className="whitespace-pre-line text-lg md:text-2xl text-gray-800 leading-[1.8] font-medium italic">
-            {songResult?.lyrics.split('\n').map((line, i) => (
-              <p key={i} className="mb-2">
-                {line}
-              </p>
-            ))}
+            {songResult?.lyrics}
           </div>
         </div>
       </div>
-
       <div className="mt-10 flex flex-wrap justify-center gap-4">
-        <button 
-          onClick={() => window.print()}
-          className="flex items-center px-6 py-3 bg-white text-gray-700 rounded-xl border border-gray-200 font-bold hover:bg-gray-50 shadow-sm"
-        >
+        <button onClick={() => window.print()} className="flex items-center px-6 py-3 bg-white text-gray-700 rounded-xl border border-gray-200 font-bold hover:bg-gray-50 shadow-sm">
           <Share2 className="mr-2 w-5 h-5" /> 악보 저장하기
         </button>
-        <button 
-          onClick={() => setStep(AppStep.LANDING)}
-          className="flex items-center px-6 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-black shadow-lg"
-        >
+        <button onClick={() => setStep(AppStep.LANDING)} className="flex items-center px-6 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-black shadow-lg">
           다시 시작하기
         </button>
       </div>
@@ -307,11 +298,7 @@ const App: React.FC = () => {
           </div>
           <span className="font-black text-xl tracking-tight text-gray-900">CO-COMPOSE</span>
         </div>
-        <div className="text-xs font-bold text-gray-400 px-3 py-1 border border-gray-200 rounded-full uppercase tracking-widest">
-          {step}
-        </div>
       </header>
-
       <main className="container mx-auto">
         {step === AppStep.LANDING && renderLanding()}
         {step === AppStep.LISTENING && renderListening()}
@@ -320,23 +307,6 @@ const App: React.FC = () => {
         {step === AppStep.GENERATING && renderGenerating()}
         {step === AppStep.RESULT && renderResult()}
       </main>
-
-      {step !== AppStep.LANDING && step !== AppStep.GENERATING && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur shadow-2xl rounded-2xl px-8 py-4 border border-indigo-100 flex items-center space-x-4 z-50">
-          <div className="flex space-x-2">
-            {[AppStep.LISTENING, AppStep.EMOTION_INPUT, AppStep.BOARD, AppStep.RESULT].map((s, idx) => (
-              <div 
-                key={s} 
-                className={`w-3 h-3 rounded-full ${
-                  step === s ? 'bg-indigo-600 w-8' : 
-                  (idx < [AppStep.LISTENING, AppStep.EMOTION_INPUT, AppStep.BOARD, AppStep.RESULT].indexOf(step)) ? 'bg-indigo-200' : 'bg-gray-200'
-                } transition-all duration-300`}
-              />
-            ))}
-          </div>
-          <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Workflow</span>
-        </div>
-      )}
     </div>
   );
 };

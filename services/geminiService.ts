@@ -2,12 +2,11 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { UserEmotion, SongResult } from "../types";
 
+/**
+ * 매 호출마다 새로운 인스턴스를 생성하여 최신 API 키를 반영합니다.
+ */
 const getAIClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey === "") {
-    throw new Error("API_KEY가 설정되지 않았습니다. Vercel 환경 변수 설정을 확인해주세요.");
-  }
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
 };
 
 export const generateLyrics = async (emotions: UserEmotion[]): Promise<{ title: string; lyrics: string }> => {
@@ -19,14 +18,10 @@ export const generateLyrics = async (emotions: UserEmotion[]): Promise<{ title: 
     contents: `
       다음은 학생들이 연주를 듣고 느낀 감정들입니다: [${emotionTexts}]
       이 감정들을 하나로 엮어 서정적이고 시적인 노래 가사를 만들어주세요.
-      가사의 형식과 어조는 다음 예시를 참고하세요:
-      "이제 모두 세월 따라 흔적도 없이 변해갔지만
-      덕수궁 돌담길엔 아직 남아 있어요
-      다정히 걸어가는 연인들..."
       
       [요구사항]
       1. '1절', '후렴' 같은 구분 기호 없이 서사적인 발라드 형식으로 작성하세요.
-      2. 반드시 JSON 형식으로만 응답하세요.
+      2. 반드시 JSON 형식으로만 응답하세요. {"title": "제목", "lyrics": "가사"}
     `,
     config: {
       responseMimeType: "application/json",
@@ -42,12 +37,10 @@ export const generateLyrics = async (emotions: UserEmotion[]): Promise<{ title: 
   });
 
   try {
-    // 마크다운 코드 블록 제거 및 순수 JSON 추출
     const cleanText = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(cleanText);
   } catch (e) {
-    console.error("JSON 파싱 에러:", response.text);
-    throw new Error("AI 응답 형식이 올바르지 않습니다.");
+    throw new Error("AI의 응답을 해석할 수 없습니다.");
   }
 };
 
@@ -67,7 +60,7 @@ export const generateSongAudio = async (lyrics: string): Promise<string> => {
   });
 
   const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!base64Audio) throw new Error("음성 생성에 실패했습니다 (AI 응답 누락).");
+  if (!base64Audio) throw new Error("음성 생성에 실패했습니다.");
   return base64Audio;
 };
 

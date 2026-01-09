@@ -14,20 +14,14 @@
             min-height: 100vh;
             margin: 0;
         }
-        #root:empty::before {
-            content: 'Loading Co-Compose...';
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #4f46e5;
-            font-weight: 800;
-            font-size: 1.1rem;
-            letter-spacing: 0.05em;
-        }
     </style>
     <script>
-        window.process = window.process || { env: { API_KEY: "" } };
+        // process 객체가 존재하지 않을 경우를 대비한 안전한 초기화
+        window.process = window.process || {};
+        window.process.env = window.process.env || {};
+        if (typeof window.process.env.API_KEY === 'undefined') {
+            window.process.env.API_KEY = "";
+        }
     </script>
     <script type="importmap">
 {
